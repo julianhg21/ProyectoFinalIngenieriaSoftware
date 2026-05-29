@@ -1,0 +1,79 @@
+CREATE TABLE Roles (
+    Id INT IDENTITY PRIMARY KEY,
+    Name NVARCHAR(50) NOT NULL UNIQUE
+);
+
+CREATE TABLE Users (
+    Id INT IDENTITY PRIMARY KEY,
+    FullName NVARCHAR(150) NOT NULL,
+    Email NVARCHAR(150) NOT NULL UNIQUE,
+    PasswordHash NVARCHAR(300) NOT NULL,
+    IsActive BIT NOT NULL DEFAULT 1,
+    RoleId INT NOT NULL,
+    CONSTRAINT FK_Users_Roles FOREIGN KEY (RoleId) REFERENCES Roles(Id)
+);
+
+CREATE TABLE Categories (
+    Id INT IDENTITY PRIMARY KEY,
+    Name NVARCHAR(100) NOT NULL
+);
+
+CREATE TABLE Products (
+    Id INT IDENTITY PRIMARY KEY,
+    Name NVARCHAR(150) NOT NULL,
+    Description NVARCHAR(500) NOT NULL,
+    Price DECIMAL(10,2) NOT NULL,
+    Stock INT NOT NULL,
+    ImageUrl NVARCHAR(500),
+    IsActive BIT NOT NULL DEFAULT 1,
+    CategoryId INT NOT NULL,
+    SellerId INT NOT NULL,
+    CONSTRAINT FK_Products_Categories FOREIGN KEY (CategoryId) REFERENCES Categories(Id),
+    CONSTRAINT FK_Products_Users FOREIGN KEY (SellerId) REFERENCES Users(Id)
+);
+
+CREATE TABLE Carts (
+    Id INT IDENTITY PRIMARY KEY,
+    UserId INT NOT NULL,
+    Status NVARCHAR(30) NOT NULL DEFAULT 'Activo',
+    CONSTRAINT FK_Carts_Users FOREIGN KEY (UserId) REFERENCES Users(Id)
+);
+
+CREATE TABLE CartItems (
+    Id INT IDENTITY PRIMARY KEY,
+    CartId INT NOT NULL,
+    ProductId INT NOT NULL,
+    Quantity INT NOT NULL,
+    UnitPrice DECIMAL(10,2) NOT NULL,
+    CONSTRAINT FK_CartItems_Carts FOREIGN KEY (CartId) REFERENCES Carts(Id),
+    CONSTRAINT FK_CartItems_Products FOREIGN KEY (ProductId) REFERENCES Products(Id)
+);
+
+CREATE TABLE Orders (
+    Id INT IDENTITY PRIMARY KEY,
+    UserId INT NOT NULL,
+    CreatedAt DATETIME2 NOT NULL DEFAULT SYSUTCDATETIME(),
+    ShippingAddress NVARCHAR(300) NOT NULL,
+    Status NVARCHAR(30) NOT NULL,
+    Total DECIMAL(10,2) NOT NULL,
+    CONSTRAINT FK_Orders_Users FOREIGN KEY (UserId) REFERENCES Users(Id)
+);
+
+CREATE TABLE OrderItems (
+    Id INT IDENTITY PRIMARY KEY,
+    OrderId INT NOT NULL,
+    ProductId INT NOT NULL,
+    Quantity INT NOT NULL,
+    UnitPrice DECIMAL(10,2) NOT NULL,
+    CONSTRAINT FK_OrderItems_Orders FOREIGN KEY (OrderId) REFERENCES Orders(Id),
+    CONSTRAINT FK_OrderItems_Products FOREIGN KEY (ProductId) REFERENCES Products(Id)
+);
+
+CREATE TABLE Payments (
+    Id INT IDENTITY PRIMARY KEY,
+    OrderId INT NOT NULL UNIQUE,
+    Method NVARCHAR(50) NOT NULL,
+    Status NVARCHAR(30) NOT NULL,
+    AuthorizationCode NVARCHAR(100),
+    CONSTRAINT FK_Payments_Orders FOREIGN KEY (OrderId) REFERENCES Orders(Id)
+);

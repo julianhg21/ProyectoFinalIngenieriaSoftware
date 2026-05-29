@@ -11,3 +11,55 @@ body {
   height: 180px;
   object-fit: cover;
 }
+
+.product-card {
+  transition: transform 0.15s ease;
+}
+
+.product-card:hover {
+  transform: translateY(-3px);
+}
+
+.metric-card {
+  background: white;
+  border: 1px solid #e5e7eb;
+  border-radius: 12px;
+  padding: 18px;
+  display: flex;
+  flex-direction: column;
+  min-height: 95px;
+}
+
+.metric-card span {
+  color: #6b7280;
+  font-size: 0.9rem;
+}
+
+.metric-card strong {
+  font-size: 1.5rem;
+}
+
+.modal-backdrop-custom {
+  position: fixed;
+  inset: 0;
+  background: rgba(0, 0, 0, 0.55);
+  z-index: 9999;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 20px;
+}
+
+.modal-card {
+  background: white;
+  border-radius: 14px;
+  padding: 24px;
+  max-width: 720px;
+  width: 100%;
+  max-height: 90vh;
+  overflow-y: auto;
+}
+
+table {
+  background: white;
+}

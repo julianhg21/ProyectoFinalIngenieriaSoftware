@@ -46,9 +46,9 @@ IF NOT EXISTS (SELECT 1 FROM dbo.Products)
 BEGIN
     INSERT INTO dbo.Products (Name, Description, Price, Stock, ImageUrl, IsActive, CategoryId, SellerId)
     VALUES
-    ('Huipil artesanal', 'Textil guatemalteco hecho a mano.', 350.00, 5, 'https://placehold.co/600x400', 1, @Textiles, @SellerId),
-    ('Taza de cerámica', 'Pieza de cerámica local.', 85.00, 12, 'https://placehold.co/600x400', 1, @Ceramica, @SellerId),
-    ('Caja de madera', 'Caja decorativa tallada a mano.', 145.00, 8, 'https://placehold.co/600x400', 1, @Madera, @SellerId),
-    ('Pulsera artesanal', 'Pulsera elaborada por productores locales.', 45.00, 20, 'https://placehold.co/600x400', 1, @Joyeria, @SellerId);
+    ('Huipil artesanal', 'Textil guatemalteco hecho a mano.', 350.00, 5, 'https://www.mayanboutique.com/785-fancybox/huipil.jpg', 1, @Textiles, @SellerId),
+    ('Taza de cerámica', 'Pieza de cerámica local.', 85.00, 12, 'https://casadelosgigantes.com/cdn/shop/files/tazaceramicabuho2_1445x.jpg?v=1700167512', 1, @Ceramica, @SellerId),
+    ('Caja de madera', 'Caja decorativa tallada a mano.', 145.00, 8, 'https://www.artesaniasalvarado.com/contenido-estatico/uploads/sites/149/2022/05/IMG_0704.jpg.webp', 1, @Madera, @SellerId),
+    ('Pulsera artesanal', 'Pulsera elaborada por productores locales.', 45.00, 20, 'https://m.media-amazon.com/images/I/81P-iSJrk-L._AC_UY1000_.jpg', 1, @Joyeria, @SellerId);
 END
 GO

@@ -1,0 +1,13 @@
+body {
+  background: #f5f6f8;
+}
+
+.hero {
+  background: white;
+  border: 1px solid #e5e7eb;
+}
+
+.card-img-top {
+  height: 180px;
+  object-fit: cover;
+}

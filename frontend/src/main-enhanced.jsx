@@ -20,6 +20,7 @@ function App() {
   const [selectedProduct, setSelectedProduct] = useState(null);
   const [selectedOrder, setSelectedOrder] = useState(null);
   const [editingProduct, setEditingProduct] = useState(null);
+  const [productFormKey, setProductFormKey] = useState(0);
   const [message, setMessage] = useState('');
   const [filters, setFilters] = useState({ search: '', categoryId: 0 });
 
@@ -71,6 +72,7 @@ function App() {
     setSelectedProduct(null);
     setSelectedOrder(null);
     setEditingProduct(null);
+    setProductFormKey(k => k + 1);
     setMessage('Sesión cerrada.');
   }
 
@@ -131,6 +133,7 @@ function App() {
   async function saveProduct(e) {
     e.preventDefault();
     const form = new FormData(e.currentTarget);
+    const wasEditing = Boolean(editingProduct);
     const product = {
       name: form.get('name'),
       description: form.get('description'),
@@ -141,12 +144,25 @@ function App() {
       sellerId: user.id,
       isActive: editingProduct?.isActive ?? true
     };
-    if (editingProduct) await api.updateProduct(editingProduct.id, product);
+
+    if (wasEditing) await api.updateProduct(editingProduct.id, product);
     else await api.createProduct(product);
-    setEditingProduct(null);
+
+    form.set('name', '');
+    form.set('description', '');
+    form.set('price', '');
+    form.set('stock', '');
+    form.set('imageUrl', '');
     e.currentTarget.reset();
-    await loadSeller(user.id);
-    setMessage('Producto guardado correctamente.');
+    setEditingProduct(null);
+    setProductFormKey(k => k + 1);
+
+    const updatedSellerProducts = await api.getSellerProducts(user.id);
+    setSellerProducts(updatedSellerProducts);
+    setSellerSummary(await apiExtra.getSellerSummary(user.id));
+    setProducts(await api.getProducts(filters.search, filters.categoryId));
+
+    setMessage(wasEditing ? 'Producto actualizado correctamente. La lista Mis productos se actualizó.' : 'Producto agregado correctamente. Los campos fueron limpiados y la lista Mis productos se actualizó.');
   }
 
   async function toggleProduct(product) {
@@ -193,7 +209,7 @@ function App() {
             {tab === 'catalog' && <Catalog products={products} categories={categories} filters={filters} setFilters={setFilters} searchProducts={searchProducts} addToCart={addToCart} setSelectedProduct={setSelectedProduct} />}
             {tab === 'cart' && <Cart cart={cart} changeQty={changeQty} emptyCart={emptyCart} checkout={checkout} />}
             {tab === 'orders' && <Orders orders={orders} showOrder={showOrder} />}
-            {tab === 'seller' && <Seller categories={categories} products={sellerProducts} orders={sellerOrders} summary={sellerSummary} saveProduct={saveProduct} editingProduct={editingProduct} setEditingProduct={setEditingProduct} toggleProduct={toggleProduct} changeStatus={changeStatus} showOrder={showOrder} />}
+            {tab === 'seller' && <Seller categories={categories} products={sellerProducts} orders={sellerOrders} summary={sellerSummary} saveProduct={saveProduct} editingProduct={editingProduct} setEditingProduct={setEditingProduct} productFormKey={productFormKey} toggleProduct={toggleProduct} changeStatus={changeStatus} showOrder={showOrder} />}
             {tab === 'admin' && <Admin report={report} users={adminUsers} products={products} toggleUser={toggleUser} toggleProduct={toggleProduct} />}
           </section>
         </div>
@@ -249,8 +265,8 @@ function Catalog({ products, categories, filters, setFilters, searchProducts, ad
 function Cart({ cart, changeQty, emptyCart, checkout }) { return <div className="card shadow-sm"><div className="card-body"><h2>Carrito</h2>{!cart || cart.items.length === 0 ? <p>Carrito vacío.</p> : <><ul className="list-group mb-3">{cart.items.map(i => <li className="list-group-item" key={i.productId}><div className="d-flex justify-content-between"><span>{i.productName}</span><strong>Q{i.subtotal}</strong></div><div className="btn-group mt-2"><button className="btn btn-sm btn-outline-secondary" onClick={() => changeQty(i, -1)}>-</button><button className="btn btn-sm btn-light">{i.quantity}</button><button className="btn btn-sm btn-outline-secondary" onClick={() => changeQty(i, 1)}>+</button><button className="btn btn-sm btn-outline-danger" onClick={() => changeQty(i, -999)}>Eliminar</button></div></li>)}</ul><p>Total: <strong>Q{cart.total}</strong></p><CheckoutForm checkout={checkout} /><button className="btn btn-outline-danger mt-2" onClick={emptyCart}>Vaciar carrito</button></>}</div></div>; }
 function CheckoutForm({ checkout }) { return <form className="row g-2" onSubmit={checkout}><div className="col-md-6"><input className="form-control" name="address" placeholder="Dirección de entrega" required /></div><div className="col-md-6"><input className="form-control" name="phone" placeholder="Teléfono" required /></div><div className="col-md-6"><select className="form-select" name="paymentMethod"><option>Pago mock</option><option>Tarjeta sandbox</option><option>Contra entrega</option></select></div><div className="col-md-6"><input className="form-control" name="notes" placeholder="Observaciones" /></div><div className="col-12"><button className="btn btn-success">Confirmar compra</button></div></form>; }
 function Orders({ orders, showOrder }) { return <><h2>Mis pedidos</h2><table className="table table-striped"><tbody>{orders.map(o => <tr key={o.id}><td>#{o.id}</td><td><span className="badge text-bg-info">{o.status}</span></td><td>Q{o.total}</td><td><button className="btn btn-sm btn-outline-secondary" onClick={() => showOrder(o.id)}>Detalle</button></td></tr>)}</tbody></table></>; }
-function Seller({ categories, products, orders, summary, saveProduct, editingProduct, setEditingProduct, toggleProduct, changeStatus, showOrder }) { return <><h2>Panel vendedor</h2>{summary && <div className="row g-3 mb-4"><Metric label="Total vendido" value={'Q' + summary.totalSold} /><Metric label="Unidades" value={summary.unitsSold} /></div>}<ProductForm categories={categories} saveProduct={saveProduct} editingProduct={editingProduct} /><h3 className="h5 mt-4">Mis productos</h3><ProductAdmin products={products} toggleProduct={toggleProduct} edit={setEditingProduct} /><h3 className="h5 mt-4">Pedidos recibidos</h3><OrderAdmin orders={orders} changeStatus={changeStatus} showOrder={showOrder} /></>; }
-function ProductForm({ categories, saveProduct, editingProduct }) { return <div className="card shadow-sm"><div className="card-body"><h3 className="h5">{editingProduct ? 'Editar producto' : 'Publicar producto'}</h3><form className="row g-2" onSubmit={saveProduct}><div className="col-md-6"><input className="form-control" name="name" placeholder="Nombre" defaultValue={editingProduct?.name || ''} required /></div><div className="col-md-3"><input className="form-control" name="price" type="number" defaultValue={editingProduct?.price || ''} placeholder="Precio" required /></div><div className="col-md-3"><input className="form-control" name="stock" type="number" defaultValue={editingProduct?.stock || ''} placeholder="Stock" required /></div><div className="col-md-4"><select className="form-select" name="categoryId" defaultValue={editingProduct?.categoryId || 1}>{categories.map(c => <option key={c.id} value={c.id}>{c.name}</option>)}</select></div><div className="col-md-8"><input className="form-control" name="imageUrl" defaultValue={editingProduct?.imageUrl || ''} placeholder="URL imagen" /></div><div className="col-12"><textarea className="form-control" name="description" defaultValue={editingProduct?.description || ''} placeholder="Descripción" required /></div><div className="col-12"><button className="btn btn-primary">Guardar</button></div></form></div></div>; }
+function Seller({ categories, products, orders, summary, saveProduct, editingProduct, setEditingProduct, productFormKey, toggleProduct, changeStatus, showOrder }) { return <><h2>Panel vendedor</h2>{summary && <div className="row g-3 mb-4"><Metric label="Total vendido" value={'Q' + summary.totalSold} /><Metric label="Unidades" value={summary.unitsSold} /></div>}<ProductForm key={editingProduct ? 'edit-' + editingProduct.id : 'new-' + productFormKey} categories={categories} saveProduct={saveProduct} editingProduct={editingProduct} /><h3 className="h5 mt-4">Mis productos</h3><ProductAdmin products={products} toggleProduct={toggleProduct} edit={setEditingProduct} /><h3 className="h5 mt-4">Pedidos recibidos</h3><OrderAdmin orders={orders} changeStatus={changeStatus} showOrder={showOrder} /></>; }
+function ProductForm({ categories, saveProduct, editingProduct }) { return <div className="card shadow-sm"><div className="card-body"><h3 className="h5">{editingProduct ? 'Editar producto' : 'Publicar producto'}</h3><form className="row g-2" onSubmit={saveProduct}><div className="col-md-6"><input className="form-control" name="name" placeholder="Nombre" defaultValue={editingProduct?.name || ''} required /></div><div className="col-md-3"><input className="form-control" name="price" type="number" defaultValue={editingProduct?.price || ''} placeholder="Precio" required /></div><div className="col-md-3"><input className="form-control" name="stock" type="number" defaultValue={editingProduct?.stock || ''} placeholder="Stock" required /></div><div className="col-md-4"><select className="form-select" name="categoryId" defaultValue={editingProduct?.categoryId || 1}>{categories.map(c => <option key={c.id} value={c.id}>{c.name}</option>)}</select></div><div className="col-md-8"><input className="form-control" name="imageUrl" defaultValue={editingProduct?.imageUrl || ''} placeholder="URL imagen" /></div><div className="col-12"><textarea className="form-control" name="description" defaultValue={editingProduct?.description || ''} placeholder="Descripción" required /></div><div className="col-12"><button className="btn btn-primary">Guardar producto</button></div></form></div></div>; }
 function Admin({ report, users, products, toggleUser, toggleProduct }) { return <><h2>Panel administrativo</h2>{report && <div className="row g-3 mb-4"><Metric label="Ventas" value={'Q' + report.totalSales} /><Metric label="Pedidos" value={report.totalOrders} /><Metric label="Usuarios" value={report.totalUsers} /><Metric label="Productos" value={report.totalProducts} /></div>}<h3 className="h5">Usuarios</h3><table className="table table-striped"><tbody>{users.map(u => <tr key={u.id}><td>{u.fullName}</td><td>{u.role}</td><td>{u.isActive ? 'Activo' : 'Inactivo'}</td><td><button className="btn btn-sm btn-warning" onClick={() => toggleUser(u)}>{u.isActive ? 'Desactivar' : 'Activar'}</button></td></tr>)}</tbody></table><h3 className="h5">Productos</h3><ProductAdmin products={products} toggleProduct={toggleProduct} /></>; }
 function ProductAdmin({ products, toggleProduct, edit }) { return <table className="table table-striped"><tbody>{products.map(p => <tr key={p.id}><td>{p.name}</td><td>Q{p.price}</td><td>{p.stock}</td><td>{p.isActive ? 'Activo' : 'Inactivo'}</td><td>{edit && <button className="btn btn-sm btn-outline-primary me-1" onClick={() => edit(p)}>Editar</button>}<button className="btn btn-sm btn-outline-warning" onClick={() => toggleProduct(p)}>{p.isActive ? 'Desactivar' : 'Activar'}</button></td></tr>)}</tbody></table>; }
 function OrderAdmin({ orders, changeStatus, showOrder }) { return <table className="table table-striped"><tbody>{orders.map(o => <tr key={o.id}><td>#{o.id}</td><td>Q{o.total}</td><td><select className="form-select" value={o.status} onChange={e => changeStatus(o.id, e.target.value)}><option>Confirmado</option><option>En preparación</option><option>Enviado</option><option>Entregado</option><option>Cancelado</option></select></td><td><button className="btn btn-sm btn-outline-secondary" onClick={() => showOrder(o.id)}>Detalle</button></td></tr>)}</tbody></table>; }

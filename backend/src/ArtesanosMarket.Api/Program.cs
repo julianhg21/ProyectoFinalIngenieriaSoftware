@@ -70,10 +70,18 @@ app.MapGet("/api/cart/{userId:int}", async (int userId, AppDbContext db) =>
 
 app.MapPost("/api/cart/items", async (AddCartItemRequest r, AppDbContext db) =>
 {
-    var product = await db.Products.FirstOrDefaultAsync(x => x.Id == r.ProductId && x.IsActive); if (product is null) return Results.NotFound();
-    var cart = await db.Carts.Include(x => x.Items).FirstOrDefaultAsync(x => x.UserId == r.UserId && x.Status == "Activo");
+    var product = await db.Products.FirstOrDefaultAsync(x => x.Id == r.ProductId && x.IsActive);
+    if (product is null) return Results.NotFound(new { message = "Producto no encontrado." });
+    if (r.Quantity <= 0) return Results.BadRequest(new { message = "La cantidad debe ser mayor a cero." });
+
+    var cart = await db.Carts.Include(x => x.Items).ThenInclude(x => x.Product).FirstOrDefaultAsync(x => x.UserId == r.UserId && x.Status == "Activo");
     if (cart is null) { cart = new Cart { UserId = r.UserId, Status = "Activo" }; db.Carts.Add(cart); }
+
     var item = cart.Items.FirstOrDefault(x => x.ProductId == r.ProductId);
+    var requestedTotal = (item?.Quantity ?? 0) + r.Quantity;
+    if (requestedTotal > product.Stock)
+        return Results.BadRequest(new { message = $"No hay suficiente stock para este producto. Stock disponible: {product.Stock}. Cantidad en carrito: {item?.Quantity ?? 0}." });
+
     if (item is null) cart.Items.Add(new CartItem { ProductId = r.ProductId, Quantity = r.Quantity, UnitPrice = product.Price }); else item.Quantity += r.Quantity;
     await db.SaveChangesAsync(); return Results.Ok(new { message = "Producto agregado." });
 });
@@ -82,8 +90,13 @@ app.MapPost("/api/orders/checkout", async (CheckoutRequest r, AppDbContext db) =
 {
     var cart = await db.Carts.Include(x => x.Items).ThenInclude(x => x.Product).FirstOrDefaultAsync(x => x.UserId == r.UserId && x.Status == "Activo");
     if (cart is null || cart.Items.Count == 0) return Results.BadRequest(new { message = "El carrito está vacío." });
+
+    var itemWithoutStock = cart.Items.FirstOrDefault(x => x.Quantity > x.Product.Stock);
+    if (itemWithoutStock is not null)
+        return Results.BadRequest(new { message = $"No hay suficiente stock para {itemWithoutStock.Product.Name}. Stock disponible: {itemWithoutStock.Product.Stock}. Cantidad solicitada: {itemWithoutStock.Quantity}." });
+
     var order = new Order { UserId = r.UserId, ShippingAddress = r.ShippingAddress, Status = "Confirmado", CreatedAt = DateTime.UtcNow, Total = cart.Items.Sum(x => x.Quantity * x.UnitPrice), Items = cart.Items.Select(x => new OrderItem { ProductId = x.ProductId, Quantity = x.Quantity, UnitPrice = x.UnitPrice }).ToList(), Payment = new Payment { Method = r.PaymentMethod, Status = "Aprobado", AuthorizationCode = "MOCK" } };
-    foreach (var item in cart.Items) item.Product.Stock = Math.Max(0, item.Product.Stock - item.Quantity);
+    foreach (var item in cart.Items) item.Product.Stock -= item.Quantity;
     cart.Status = "Convertido"; db.Orders.Add(order); await db.SaveChangesAsync(); return Results.Ok(new { order.Id, order.Status, order.Total, paymentStatus = order.Payment.Status });
 });
 
@@ -129,7 +142,7 @@ public record OrderStatusRequest(string Status);
 public record UserDto(int Id, string FullName, string Email, string Role, bool IsActive);
 public record LoginResponse(string Token, UserDto User);
 public record ProductDto(int Id, string Name, string Description, decimal Price, int Stock, string ImageUrl, string Category, int CategoryId, int SellerId, bool IsActive);
-public record CartDto(int Id, int UserId, List<CartItemDto> Items, decimal Total) { public static CartDto From(Cart? c) => c is null ? new CartDto(0, 0, [], 0) : new CartDto(c.Id, c.UserId, c.Items.Select(x => new CartItemDto(x.ProductId, x.Product.Name, x.Quantity, x.UnitPrice, x.Quantity * x.UnitPrice)).ToList(), c.Items.Sum(x => x.Quantity * x.UnitPrice)); }
-public record CartItemDto(int ProductId, string ProductName, int Quantity, decimal UnitPrice, decimal Subtotal);
+public record CartDto(int Id, int UserId, List<CartItemDto> Items, decimal Total) { public static CartDto From(Cart? c) => c is null ? new CartDto(0, 0, [], 0) : new CartDto(c.Id, c.UserId, c.Items.Select(x => new CartItemDto(x.ProductId, x.Product.Name, x.Quantity, x.Product.Stock, x.UnitPrice, x.Quantity * x.UnitPrice)).ToList(), c.Items.Sum(x => x.Quantity * x.UnitPrice)); }
+public record CartItemDto(int ProductId, string ProductName, int Quantity, int Stock, decimal UnitPrice, decimal Subtotal);
 public record OrderDto(int Id, int UserId, string Status, decimal Total, DateTime CreatedAt);
 public record ReportDto(decimal TotalSales, int TotalOrders, int TotalUsers, int TotalProducts);

@@ -142,7 +142,7 @@ function App() {
         setMessage('Producto actualizado correctamente.');
       } else {
         await api.createProduct(payload);
-        setSellerNotice('Producto agregado correctamente. Los campos fueron limpiados y la lista Mis productos se actualizó.');
+        setSellerNotice('Producto agregado correctamente.');
         setMessage('Producto agregado correctamente.');
       }
 

@@ -162,7 +162,7 @@ function App() {
     setSellerSummary(await apiExtra.getSellerSummary(user.id));
     setProducts(await api.getProducts(filters.search, filters.categoryId));
 
-    setMessage(wasEditing ? 'Producto actualizado correctamente. La lista Mis productos se actualizó.' : 'Producto agregado correctamente. Los campos fueron limpiados y la lista Mis productos se actualizó.');
+    setMessage(wasEditing ? 'Producto actualizado correctamente.' : 'Producto agregado correctamente.');
   }
 
   async function toggleProduct(product) {

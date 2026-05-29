@@ -10,6 +10,7 @@ app.UseCors("Frontend");
 app.UseSwagger();
 app.UseSwaggerUI();
 using (var scope = app.Services.CreateScope()) Seed(scope.ServiceProvider.GetRequiredService<AppDbContext>());
+app.MapExtraEndpoints();
 
 app.MapGet("/", () => Results.Ok(new { app = "Artesanos Market API", status = "OK" }));
 app.MapGet("/api/categories", async (AppDbContext db) => Results.Ok(await db.Categories.OrderBy(x => x.Name).ToListAsync()));
@@ -18,7 +19,7 @@ app.MapPost("/api/auth/register", async (RegisterRequest r, AppDbContext db) =>
 {
     if (await db.Users.AnyAsync(x => x.Email == r.Email)) return Results.BadRequest(new { message = "El correo ya existe." });
     var role = await db.Roles.FirstOrDefaultAsync(x => x.Name == r.Role) ?? await db.Roles.FirstAsync(x => x.Name == "Cliente");
-    var user = new User { FullName = r.FullName, Email = r.Email, Secret = Enc(r.Password), RoleId = role.Id, IsActive = true };
+    var user = new User { FullName = r.FullName, Email = r.Email, KeyValue = Enc(r.Password), RoleId = role.Id, IsActive = true };
     db.Users.Add(user); await db.SaveChangesAsync();
     return Results.Created("/api/users/" + user.Id, new UserDto(user.Id, user.FullName, user.Email, role.Name, user.IsActive));
 });
@@ -26,7 +27,7 @@ app.MapPost("/api/auth/register", async (RegisterRequest r, AppDbContext db) =>
 app.MapPost("/api/auth/login", async (LoginRequest r, AppDbContext db) =>
 {
     var user = await db.Users.Include(x => x.Role).FirstOrDefaultAsync(x => x.Email == r.Email && x.IsActive);
-    if (user is null || user.Secret != Enc(r.Password)) return Results.Unauthorized();
+    if (user is null || user.KeyValue != Enc(r.Password)) return Results.Unauthorized();
     return Results.Ok(new LoginResponse("demo-token", new UserDto(user.Id, user.FullName, user.Email, user.Role.Name, user.IsActive)));
 });
 
@@ -103,14 +104,14 @@ static void Seed(AppDbContext db)
     if (db.Roles.Any()) return;
     var c = new Role { Name = "Cliente" }; var v = new Role { Name = "Vendedor" }; var a = new Role { Name = "Administrador" };
     db.Roles.AddRange(c, v, a); db.Categories.AddRange(new Category { Name = "Textiles" }, new Category { Name = "Cerámica" }, new Category { Name = "Madera" }, new Category { Name = "Joyería" }); db.SaveChanges();
-    db.Users.AddRange(new User { FullName = "Cliente Demo", Email = "cliente@demo.com", Secret = Enc("Demo123"), RoleId = c.Id }, new User { FullName = "Vendedor Demo", Email = "vendedor@demo.com", Secret = Enc("Demo123"), RoleId = v.Id }, new User { FullName = "Administrador Demo", Email = "admin@demo.com", Secret = Enc("Demo123"), RoleId = a.Id }); db.SaveChanges();
+    db.Users.AddRange(new User { FullName = "Cliente Demo", Email = "cliente@demo.com", KeyValue = Enc("Demo123"), RoleId = c.Id }, new User { FullName = "Vendedor Demo", Email = "vendedor@demo.com", KeyValue = Enc("Demo123"), RoleId = v.Id }, new User { FullName = "Administrador Demo", Email = "admin@demo.com", KeyValue = Enc("Demo123"), RoleId = a.Id }); db.SaveChanges();
     db.Products.AddRange(new Product { Name = "Huipil artesanal", Description = "Textil guatemalteco hecho a mano.", Price = 350, Stock = 5, ImageUrl = "https://placehold.co/600x400", CategoryId = 1, SellerId = 2 }, new Product { Name = "Taza de cerámica", Description = "Pieza de cerámica local.", Price = 85, Stock = 12, ImageUrl = "https://placehold.co/600x400", CategoryId = 2, SellerId = 2 }, new Product { Name = "Caja de madera", Description = "Caja decorativa tallada a mano.", Price = 145, Stock = 8, ImageUrl = "https://placehold.co/600x400", CategoryId = 3, SellerId = 2 }, new Product { Name = "Pulsera artesanal", Description = "Pulsera elaborada por productores locales.", Price = 45, Stock = 20, ImageUrl = "https://placehold.co/600x400", CategoryId = 4, SellerId = 2 }); db.SaveChanges();
 }
 
 public partial class Program { }
 public class AppDbContext(DbContextOptions<AppDbContext> options) : DbContext(options) { public DbSet<Role> Roles => Set<Role>(); public DbSet<User> Users => Set<User>(); public DbSet<Category> Categories => Set<Category>(); public DbSet<Product> Products => Set<Product>(); public DbSet<Cart> Carts => Set<Cart>(); public DbSet<CartItem> CartItems => Set<CartItem>(); public DbSet<Order> Orders => Set<Order>(); public DbSet<OrderItem> OrderItems => Set<OrderItem>(); public DbSet<Payment> Payments => Set<Payment>(); }
 public class Role { public int Id { get; set; } public string Name { get; set; } = ""; }
-public class User { public int Id { get; set; } public string FullName { get; set; } = ""; public string Email { get; set; } = ""; public string Secret { get; set; } = ""; public bool IsActive { get; set; } = true; public int RoleId { get; set; } public Role Role { get; set; } = null!; }
+public class User { public int Id { get; set; } public string FullName { get; set; } = ""; public string Email { get; set; } = ""; public string KeyValue { get; set; } = ""; public bool IsActive { get; set; } = true; public int RoleId { get; set; } public Role Role { get; set; } = null!; }
 public class Category { public int Id { get; set; } public string Name { get; set; } = ""; }
 public class Product { public int Id { get; set; } public string Name { get; set; } = ""; public string Description { get; set; } = ""; public decimal Price { get; set; } public int Stock { get; set; } public string ImageUrl { get; set; } = ""; public bool IsActive { get; set; } = true; public int CategoryId { get; set; } public Category Category { get; set; } = null!; public int SellerId { get; set; } }
 public class Cart { public int Id { get; set; } public int UserId { get; set; } public string Status { get; set; } = "Activo"; public List<CartItem> Items { get; set; } = []; }

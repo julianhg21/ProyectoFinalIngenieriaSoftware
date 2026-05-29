@@ -13,9 +13,16 @@ public static class ExtraEndpoints
             if (item is null) return Results.NotFound(new { message = "Producto no encontrado en el carrito." });
 
             if (r.Quantity <= 0)
+            {
                 cart.Items.Remove(item);
+            }
             else
+            {
+                if (r.Quantity > item.Product.Stock)
+                    return Results.BadRequest(new { message = $"No hay suficiente stock para {item.Product.Name}. Stock disponible: {item.Product.Stock}. Cantidad solicitada: {r.Quantity}." });
+
                 item.Quantity = r.Quantity;
+            }
 
             await db.SaveChangesAsync();
             return Results.Ok(CartDto.From(await GetActiveCart(r.UserId, db)));
@@ -48,6 +55,10 @@ public static class ExtraEndpoints
             if (cart is null || cart.Items.Count == 0)
                 return Results.BadRequest(new { message = "El carrito está vacío." });
 
+            var itemWithoutStock = cart.Items.FirstOrDefault(x => x.Quantity > x.Product.Stock);
+            if (itemWithoutStock is not null)
+                return Results.BadRequest(new { message = $"No hay suficiente stock para {itemWithoutStock.Product.Name}. Stock disponible: {itemWithoutStock.Product.Stock}. Cantidad solicitada: {itemWithoutStock.Quantity}." });
+
             var shippingText = $"Dirección: {r.ShippingAddress}. Teléfono: {r.Phone}. Observaciones: {r.Notes}";
             var order = new Order
             {
@@ -61,7 +72,7 @@ public static class ExtraEndpoints
             };
 
             foreach (var item in cart.Items)
-                item.Product.Stock = Math.Max(0, item.Product.Stock - item.Quantity);
+                item.Product.Stock -= item.Quantity;
 
             cart.Status = "Convertido";
             db.Orders.Add(order);

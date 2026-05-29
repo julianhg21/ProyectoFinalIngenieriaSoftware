@@ -36,11 +36,11 @@ app.MapGet("/api/products", async (AppDbContext db, string? search, int? categor
     if (!includeInactive) q = q.Where(x => x.IsActive);
     if (!string.IsNullOrWhiteSpace(search)) q = q.Where(x => x.Name.Contains(search) || x.Description.Contains(search));
     if (categoryId.HasValue && categoryId.Value > 0) q = q.Where(x => x.CategoryId == categoryId.Value);
-    return Results.Ok(await q.OrderBy(x => x.Name).Select(x => ToProductDto(x)).ToListAsync());
+    return Results.Ok(await q.OrderBy(x => x.Name).Select(x => new ProductDto(x.Id, x.Name, x.Description, x.Price, x.Stock, x.ImageUrl, x.Category.Name, x.CategoryId, x.SellerId, x.IsActive)).ToListAsync());
 });
 
 app.MapGet("/api/products/seller/{sellerId:int}", async (int sellerId, AppDbContext db) =>
-    Results.Ok(await db.Products.Include(x => x.Category).Where(x => x.SellerId == sellerId).OrderBy(x => x.Name).Select(x => ToProductDto(x)).ToListAsync()));
+    Results.Ok(await db.Products.Include(x => x.Category).Where(x => x.SellerId == sellerId).OrderBy(x => x.Name).Select(x => new ProductDto(x.Id, x.Name, x.Description, x.Price, x.Stock, x.ImageUrl, x.Category.Name, x.CategoryId, x.SellerId, x.IsActive)).ToListAsync()));
 
 app.MapPost("/api/products", async (ProductWriteRequest r, AppDbContext db) =>
 {
@@ -97,7 +97,6 @@ app.MapGet("/api/admin/report", async (AppDbContext db) => Results.Ok(new Report
 app.Run();
 
 static string Enc(string value) => Convert.ToBase64String(System.Text.Encoding.UTF8.GetBytes(value));
-static ProductDto ToProductDto(Product x) => new(x.Id, x.Name, x.Description, x.Price, x.Stock, x.ImageUrl, x.Category.Name, x.CategoryId, x.SellerId, x.IsActive);
 static OrderDto ToOrderDto(Order x) => new(x.Id, x.UserId, x.Status, x.Total, x.CreatedAt);
 static void Seed(AppDbContext db)
 {

@@ -42,7 +42,7 @@ jobs:
       - name: Static analysis backend
         run: dotnet format backend/src/ArtesanosMarket.Api/ArtesanosMarket.Api.csproj --verify-no-changes --verbosity minimal
 
-      - name: Run backend tests
+      - name: Run backend tests with coverage
         shell: bash
         env:
           ASPNETCORE_ENVIRONMENT: Testing
@@ -52,11 +52,19 @@ jobs:
           TEST_PROJECTS=$(find backend -name "*Tests.csproj" -o -name "*Test.csproj" | tr '\n' ' ')
           if [ -z "$TEST_PROJECTS" ]; then
             echo "No backend test projects found."
-          else
-            for project in $TEST_PROJECTS; do
-              dotnet test "$project" --configuration Release --logger "trx"
-            done
+            exit 1
           fi
+          mkdir -p TestResults/Coverage
+          for project in $TEST_PROJECTS; do
+            dotnet test "$project" --configuration Release --logger "trx" /p:CollectCoverage=true /p:CoverletOutputFormat=cobertura /p:CoverletOutput="../../../TestResults/Coverage/coverage" /p:Threshold=60 /p:ThresholdType=line /p:ThresholdStat=total
+          done
+
+      - name: Upload backend coverage artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: backend-coverage
+          path: TestResults/Coverage
+          if-no-files-found: error
 
   frontend:
     name: Frontend React

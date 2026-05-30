@@ -41,6 +41,10 @@ jobs:
 
       - name: Run backend tests if present
         shell: bash
+        env:
+          ASPNETCORE_ENVIRONMENT: Testing
+          DOTNET_ENVIRONMENT: Testing
+          USE_INMEMORY_DATABASE: 'true'
         run: |
           TEST_PROJECTS=$(find backend -name "*Tests.csproj" -o -name "*Test.csproj" | tr '\n' ' ')
           if [ -z "$TEST_PROJECTS" ]; then

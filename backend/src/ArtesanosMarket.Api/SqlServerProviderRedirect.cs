@@ -10,18 +10,19 @@ public static class SqlServerProviderRedirect
             ?? Environment.GetEnvironmentVariable("DOTNET_ENVIRONMENT")
             ?? string.Empty;
 
-        var useRealInMemory = Environment.GetEnvironmentVariable("USE_INMEMORY_DATABASE") == "true";
-
-        if (environment.Equals("Testing", StringComparison.OrdinalIgnoreCase) || useRealInMemory)
-        {
-            return Microsoft.EntityFrameworkCore.InMemoryDbContextOptionsExtensions.UseInMemoryDatabase(optionsBuilder, databaseName);
-        }
-
         var configuration = new ConfigurationBuilder()
             .SetBasePath(AppContext.BaseDirectory)
             .AddJsonFile("appsettings.json", optional: true, reloadOnChange: false)
+            .AddJsonFile($"appsettings.{environment}.json", optional: true, reloadOnChange: false)
             .AddEnvironmentVariables()
             .Build();
+
+        var provider = configuration["Database:Provider"] ?? "SqlServer";
+
+        if (provider.Equals("InMemory", StringComparison.OrdinalIgnoreCase))
+        {
+            return Microsoft.EntityFrameworkCore.InMemoryDbContextOptionsExtensions.UseInMemoryDatabase(optionsBuilder, databaseName);
+        }
 
         var connectionString = configuration.GetConnectionString("DefaultConnection");
 

@@ -1,0 +1,81 @@
+name: CI - Build and Test
+
+on:
+  push:
+    branches:
+      - main
+      - develop
+      - qa
+      - release/**
+      - feature/**
+      - hotfix/**
+  pull_request:
+    branches:
+      - main
+      - develop
+      - qa
+      - release/**
+
+permissions:
+  contents: read
+
+jobs:
+  backend:
+    name: Backend .NET
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Setup .NET 8
+        uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: '8.0.x'
+
+      - name: Restore backend dependencies
+        run: dotnet restore backend/src/ArtesanosMarket.Api/ArtesanosMarket.Api.csproj
+
+      - name: Build backend
+        run: dotnet build backend/src/ArtesanosMarket.Api/ArtesanosMarket.Api.csproj --configuration Release --no-restore
+
+      - name: Run backend tests if present
+        shell: bash
+        run: |
+          TEST_PROJECTS=$(find backend -name "*Tests.csproj" -o -name "*Test.csproj" | tr '\n' ' ')
+          if [ -z "$TEST_PROJECTS" ]; then
+            echo "No backend test projects found yet. This step will be completed in the unit testing phase."
+          else
+            for project in $TEST_PROJECTS; do
+              echo "Running tests for $project"
+              dotnet test "$project" --configuration Release --logger "trx"
+            done
+          fi
+
+  frontend:
+    name: Frontend React
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+
+      - name: Install frontend dependencies
+        working-directory: frontend
+        run: npm install
+
+      - name: Build frontend
+        working-directory: frontend
+        run: npm run build
+
+      - name: Upload frontend build artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: frontend-dist
+          path: frontend/dist
+          if-no-files-found: error

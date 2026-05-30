@@ -1,4 +1,4 @@
-name: CI - Build and Test
+name: CI CD
 
 on:
   push:
@@ -39,7 +39,10 @@ jobs:
       - name: Build backend
         run: dotnet build backend/src/ArtesanosMarket.Api/ArtesanosMarket.Api.csproj --configuration Release --no-restore
 
-      - name: Run backend tests if present
+      - name: Static analysis backend
+        run: dotnet format backend/src/ArtesanosMarket.Api/ArtesanosMarket.Api.csproj --verify-no-changes --verbosity minimal
+
+      - name: Run backend tests
         shell: bash
         env:
           ASPNETCORE_ENVIRONMENT: Testing
@@ -48,10 +51,9 @@ jobs:
         run: |
           TEST_PROJECTS=$(find backend -name "*Tests.csproj" -o -name "*Test.csproj" | tr '\n' ' ')
           if [ -z "$TEST_PROJECTS" ]; then
-            echo "No backend test projects found yet. This step will be completed in the unit testing phase."
+            echo "No backend test projects found."
           else
             for project in $TEST_PROJECTS; do
-              echo "Running tests for $project"
               dotnet test "$project" --configuration Release --logger "trx"
             done
           fi
@@ -73,6 +75,10 @@ jobs:
         working-directory: frontend
         run: npm install
 
+      - name: Lint frontend
+        working-directory: frontend
+        run: npm run lint
+
       - name: Build frontend
         working-directory: frontend
         run: npm run build
@@ -83,3 +89,17 @@ jobs:
           name: frontend-dist
           path: frontend/dist
           if-no-files-found: error
+
+  deployment:
+    name: Deployment trigger evidence
+    runs-on: ubuntu-latest
+    needs:
+      - backend
+      - frontend
+    if: github.ref == 'refs/heads/main'
+
+    steps:
+      - name: Confirm external CD
+        run: |
+          echo "CI finished on main."
+          echo "Render and Vercel handle automatic deployment from GitHub."

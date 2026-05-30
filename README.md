@@ -1,4 +1,4 @@
-# Artesanos Market
+# Artesanos Market Readme
 
 Proyecto final de Ingeniería de Software. Sistema web MVP de e-commerce para artesanos y pequeños productores locales en Guatemala.
 
